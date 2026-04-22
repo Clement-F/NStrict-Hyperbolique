@@ -1,0 +1,39 @@
+Implémentation d’un schéma, basé sur l’article [en pièce-jointe avec quelques annotations]
+
+LeVeque, R., “The dynamics of pressureless dust clouds and delta waves”, J. Hyperb. Diff. Eqs 01 (2004), 315–327. doi:10.1142/S0219891604000135
+
+OBJECTIFS
+
+Implémenter le schéma de Godunov pour le gaz sans pression.
+Réaliser le même test numérique que dans l’article.
+Tracer les résultats aux mêmes instants et comparer avec la solution exacte.
+
+INSTRUCTIONS
+-Prendre le temps de lire l’article. 
+-Les formules importantes pour l’implémentation sont déjà encadrées.
+-Comprendre la structure de la solution du problème « collision de deux nuages finis » 
+    de la section §4 (ce qui nécessite d’avoir lu §2 et §3).
+-Le schéma à coder est défini par les équations (21)─(23). 
+    Dans (21), ne tenir compte que de F, oublier les \tilde{F} qui sont des corrections d’ordre 2.
+-Une attention particulière doit être accordé au traitement des deux bords.  
+    Ici, il suffit de symétriser la dernière maille intérieure.
+-À l’instant initial est t = - 1, les variables prennent les valeurs indiquées par (26).
+-L’article ne donne pas la valeur du pas d’espace \Delta x. 
+    Essayer quelques petites valeurs (avoir 1000 ou 4000 mailles dans le domaine de calcul est tout à fait raisonnable).
+-De même, l’article ne semble pas fournir la valeur du pas de temps \Delta t. 
+    Là il y a une condition CFL à imposer : essayer \Delta t * \max{|u|^n_i} / \Delta x = 1/2. 
+    On n’est pas obligé de prendre \Delta t constant. 
+    Par contre, il faut que les instantanées prises soient aux bons moments.
+-Lancer la simulation et prendre des instantanées à t = -0.5, 0.0, 0.5, 1.0, 1.5, 3.5, 6.0. 
+    Tracer les solutions calculées sur le même graphe que la solution exacte 
+    (calculée au fur et à mesure dans les sections précédentes) 
+    en précisant les paramètres numériques (\Delta x, \Delta t ou CFL).
+-Commenter les résultats obtenus. 
+-Pourquoi les fronts semblent moins raides que dans l’article ?
+
+FACULTATIF
+Essayer d’améliorer la raideur des fronts de discontinuité, soit en suivant les corrections d’ordre proposées par l’auteur (pages 322–323, lire éventuellement [10], [11]), soit en utilisant les reconstructions limitées de pentes (si déjà vues en V03). Notons que la formule (25) généralise (24), que LeVeque avait suggérée pour les systèmes strictement hyperboliques.
+Simuler le test de la section §3 : collision d’un nuage fini et d’un nuage semi-infini.
+RAPPEL
+
+Date limite de remise (rapport et code informatique) : 03/05/2026, 23:59:59. Merci d'indiquer vos disponibilités pour la soutenance.
