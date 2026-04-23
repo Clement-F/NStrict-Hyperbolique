@@ -49,7 +49,7 @@ for k in range(0,sm):
         else : U_ex[1][k][i] = 0
         
         
-    plt.title("ondes à temps :"+str(T[k]-1.0))    
+    plt.title("ondes à temps :"+str(T[k]))    
     plt.plot(X,U[0][k],'g')
     plt.plot(X,U_ex[0][k],'b')
     #plt.plot(X,U[1][k]/U[0][k],'b')

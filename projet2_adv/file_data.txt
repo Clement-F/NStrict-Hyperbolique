@@ -1,0 +1,15 @@
+nt =   500
+nx =  5000
+save_max =    7
+time_save = -0.499616
+time_save =  0.000784
+time_save =  0.500284
+time_save =  1.000668
+time_save =  1.500184
+time_save =  3.500051
+time_save =  6.001268
+time_save =  6.003454
+time_save =  6.005640
+time_save =  6.007826
+time_save =  6.010013
+time_save =  6.012200

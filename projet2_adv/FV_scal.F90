@@ -48,7 +48,7 @@ program FiniteVolume
 !  domaine temporelle
    integer, parameter   :: nt=500
    real                 :: T
-   real                 :: t_=0.0,  dt=0.0
+   real                 :: t_=-1.0,  dt=0.0
 
 !  Flux Numeriques
    real, dimension(:,:),   Pointer :: F,F_c
@@ -68,8 +68,8 @@ program FiniteVolume
 
 !  file parameter
    integer, parameter   :: numfile_sol=1, numfile_data=2, numfile_param=3, numfile_err =4, numfile_conv=5
-   integer              :: n_imp=0, n_imp_max
-   real                 :: t_imp
+   integer              :: n_imp_max, n_imp=1
+   real, dimension(7):: t_imp= (/ -0.5, 0.0, 0.5, 1.0, 1.5, 3.5, 6.0 /)
 
    character(len=32)    :: nomfile_sol = 'file_sol.txt',   nomfile_data = 'file_data.txt', nomfile_param = 'param.txt', nomfile_err = 'error_file.txt', &
                            nomfile_conv = 'convergence_err.txt'
@@ -96,8 +96,6 @@ program FiniteVolume
 
    allocate(sol(5,nx))
 
-   t_imp=T/real(n_imp_max)
-
    do i=0,nx-1;   U(:,i) = U_init(X(i));   end do
 
    print *, "init"
@@ -107,7 +105,7 @@ program FiniteVolume
    open(unit=numfile_data, file=nomfile_data, form ='formatted', status ='old')   
    write(unit= numfile_data, fmt='("nt = "i5)') nt
    write(unit= numfile_data, fmt='("nx = "i5)') nx
-   write(unit= numfile_data, fmt='("save_max =" i5)')  int(T/t_imp)
+   write(unit= numfile_data, fmt='("save_max =" i5)')  7
    
    open(unit=numfile_sol,  file=nomfile_sol, form ='formatted', status ='old')
    open(unit=numfile_err,  file=nomfile_err, form ='formatted', status ='old')
@@ -127,24 +125,24 @@ program FiniteVolume
       end do
 
       if(vitesse >1e-20) then
-         dt = min(cfl * dx /(2* vitesse), T-t_)
+         dt = min(cfl * dx /(2* vitesse), abs(T-t_))
       else
-         print *,'hey'
+         print *,'hey', dt
          dt = cfl*dx 
       end if
       ! print *,"TIME =",t_, 'dt=',dt, 'dx=',dx
 
       call correct_Flux(U,dt,dx,nx,F) 
 
-      if(t_ >=  n_imp*t_imp)  then
+      if(t_ >=  t_imp(n_imp) ) then
          print *, "loop : ",n,", n_imp",n_imp,", time :",t_," ; ","dt : ",dt, ";"
 
-         
          do i=0,nx-1
-            U_ex(:,i) = U_exa(X(i),t_-1.,wl,wr) 
+            U_ex(:,i) = U_exa(X(i),t_,wl,wr) 
          end do
 
          n_imp = n_imp +1
+
          sol(1,:)=X(0:nx-1)
          sol(2,:)=U(1,0:nx-1);         sol(3,:)=U(2,0:nx-1)
          sol(4,:)=U_ex(1,0:nx-1);      sol(5,:)=U_ex(2,0:nx-1)
@@ -153,7 +151,6 @@ program FiniteVolume
          if(sum( abs(U-U_ex))*dx > err_L1) err_L1 = sum( abs(U-U_ex))*dx 
          if(sum( (U-U_ex)**2)*dx > err_L2) err_L2 = sum( (U-U_ex)**2)*dx 
 
-         
          write(unit=numfile_err, fmt='(" --------------- at time : "f10.6" ----------------- ")') t_ 
          write(unit=numfile_err, fmt='("err_L1 :" f16.10 )') sum( abs(U-U_ex))*dx 
          write(unit=numfile_err, fmt='("err_L2 :" f16.10 )') sum( (U-U_ex)**2)*dx   
