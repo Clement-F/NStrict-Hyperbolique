@@ -51,7 +51,7 @@ function godunov(u_,v_)
    return
 end function godunov
 
-subroutine correct_Flux(U,dt,dx,nx,F) 
+subroutine Update_LeVeque(U,dt,dx,nx,F) 
    implicit none
    integer,intent(in)  :: nx
    real, dimension(2,0:nx-1), intent(inout)  :: U
@@ -96,27 +96,23 @@ subroutine correct_Flux(U,dt,dx,nx,F)
       end if
    end do
 
-
-   ! U(:,:) = U(:,:)- ((dt/dx)* (F  (:,1:nx)-F  (:,0:nx-1))) 
+ 
    do i=0,nx-1
       s1=0;s2=0;
       if((U(2,i-1)/U(1,i-1))<0 .and. 0<(U(2,i)/U(1,i))) then
          z1 = -flux(U(:,i-1));   z2= flux(U(:,i))
          s1 = U(2,i-1)/U(1,i-1); s2 = U(2,i)/U(1,i)
 
-         ! print *,'z1 =',z1,'z2 =',z2
       else  
          u_hat = (U(2,i-1) /U(1,i-1))  * (sqrt(U(1,i-1))/(sqrt(U(1,i-1)) + sqrt(U(1,i)))) &
                + (U(2,i)   /U(1,i))    * (sqrt(U(1,i))  /(sqrt(U(1,i-1)) + sqrt(U(1,i))))
 
          if(u_hat<0) then
             z1 = flux(U(:,i))-flux(U(:,i-1)); z2 =0
-            ! print *,'z1 =',z1
             s1 = u_hat; s2 = u_hat
 
          else 
             z1 = 0; z2 = flux(U(:,i))-flux(U(:,i-1))
-            ! print *,'z2 =', z2
             s1 = u_hat; s2 = u_hat
 
          end if
@@ -126,54 +122,33 @@ subroutine correct_Flux(U,dt,dx,nx,F)
       if(z1(1) > 1e-6) theta1 = (z1(1)*z1_pred(1) + z1(2)*z1_pred(2))/(z1(1)*z1(1) + z1(2)*z1(2))
       if(z2(1) > 1e-6) theta2 = (z2(1)*z2_pred(1) + z2(2)*z2_pred(2))/(z2(1)*z2(1) + z2(2)*z2(2))
 
-      ! print*, 'thetas = ',theta1, theta2
-      ! print*, (z1(1)*z1_pred(1) + z1(2)*z1_pred(2))
-      ! print*, (z1(1)*z1(1) + z1(2)*z1(2))
       phi = max(0.,min(1.,theta1));  z1 = phi*z1    
-      ! print *,phi
       phi = max(0.,min(1.,theta2));  z2 = phi*z2    
-      ! print *,phi
 
       F_ = 0.5*(    sign(1.,s1) * (1-(dt/dx) *abs(s1)))*z1
       F_ = F_+ 0.5*(sign(1.,s2) * (1-(dt/dx) *abs(s2)))*z2
-   !    ! print *, sign(1.,s1), sign(1.,s2)
-      ! print *, 'U=  ',U(:,i-1), U(:,i)
-   !    print *, 'F,s=',F_, s1, s2
-   !    print *, 'z=  ',z1, z2 
-   !    print *, 'phi=',phi, theta1, theta2
       
-   !    if(F_(1) /= F_(1)) call exit(0)
+      if(F_(1) /= F_(1)) call exit(0)
 
       if( (U(1,i)-((dt/dx)* (F(1,i+1)-F(1,i))) - ((dt/dx)* (F_(1)-F_pred(1))))<0. )  then
 
          U(:,i)= U(:,i)- ((dt/dx)* (F(:,i)-F(:,i-1)))
-   !       print *, U(1,i)
-   !       print *, "Ordre 1"
          F_pred =0; z1_pred =0; z2_pred =0
 
       else 
          U(:,i) = U(:,i)-((dt/dx)* (F(:,i+1)-F(:,i))) - ((dt/dx)* (F_-F_pred))
-   !       print *, U(1,i)
-   !       print *, "Ordre 2"
          z1_pred = z1; z2_pred = z2
          F_pred = F_
       end if
-
-      
-   !   
-         ! U(:,i) = U(:,i)-((dt/dx)* (F(:,i+1)-F(:,i)))
-
-   !    print *, 'U=  ',U(:,i-1), U(:,i)
-   !    print *,'----------------'
-
-   !    if(U(1,i)<0.) call exit(0)
+   
+      if(U(1,i)<0.) call exit(0)
 
    end do
 
 
 
 
-end subroutine correct_Flux
+end subroutine Update_LeVeque
 
 function U_init(x) result(U)
    implicit none

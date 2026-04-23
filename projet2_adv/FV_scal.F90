@@ -69,7 +69,7 @@ program FiniteVolume
 !  file parameter
    integer, parameter   :: numfile_sol=1, numfile_data=2, numfile_param=3, numfile_err =4, numfile_conv=5
    integer              :: n_imp_max, n_imp=1
-   real, dimension(7):: t_imp= (/ -0.5, 0.0, 0.5, 1.0, 1.5, 3.5, 6.0 /)
+   real, dimension(8):: t_imp= (/-1.0,   -0.5, 0.0,  0.5,  1.0,  1.5,  3.5,  6.0 /)
 
    character(len=32)    :: nomfile_sol = 'file_sol.txt',   nomfile_data = 'file_data.txt', nomfile_param = 'param.txt', nomfile_err = 'error_file.txt', &
                            nomfile_conv = 'convergence_err.txt'
@@ -77,6 +77,8 @@ program FiniteVolume
 ! =======================================================================================
 ! =======================================================================================
 ! =======================================================================================
+
+   ! declaration et callibrations des variables 
 
    open(unit=numfile_param, file=nomfile_param, form ='formatted', status ='old')
 
@@ -97,6 +99,16 @@ program FiniteVolume
    allocate(sol(5,nx))
 
    do i=0,nx-1;   U(:,i) = U_init(X(i));   end do
+   
+   do i=1,8
+      if(t_imp(i)>T) then
+         n_imp_max=i-1
+         exit
+      end if
+   end do
+   print *,n_imp_max
+
+   ! preparations des sorties
 
    print *, "init"
    
@@ -105,7 +117,7 @@ program FiniteVolume
    open(unit=numfile_data, file=nomfile_data, form ='formatted', status ='old')   
    write(unit= numfile_data, fmt='("nt = "i5)') nt
    write(unit= numfile_data, fmt='("nx = "i5)') nx
-   write(unit= numfile_data, fmt='("save_max =" i5)')  7
+   write(unit= numfile_data, fmt='("save_max =" i5)')  n_imp_max
    
    open(unit=numfile_sol,  file=nomfile_sol, form ='formatted', status ='old')
    open(unit=numfile_err,  file=nomfile_err, form ='formatted', status ='old')
@@ -130,9 +142,10 @@ program FiniteVolume
          print *,'hey', dt
          dt = cfl*dx 
       end if
-      ! print *,"TIME =",t_, 'dt=',dt, 'dx=',dx
+      
+      t_ = t_ +dt
 
-      call correct_Flux(U,dt,dx,nx,F) 
+      call Update_LeVeque(U,dt,dx,nx,F) 
 
       if(t_ >=  t_imp(n_imp) ) then
          print *, "loop : ",n,", n_imp",n_imp,", time :",t_," ; ","dt : ",dt, ";"
@@ -142,6 +155,7 @@ program FiniteVolume
          end do
 
          n_imp = n_imp +1
+
 
          sol(1,:)=X(0:nx-1)
          sol(2,:)=U(1,0:nx-1);         sol(3,:)=U(2,0:nx-1)
@@ -157,9 +171,6 @@ program FiniteVolume
          write(unit=numfile_data, fmt='("time_save =" f10.6)')  t_
       end if
       
-      t_ = t_ +dt
-
-
    end do
    
    close(unit=numfile_data)
