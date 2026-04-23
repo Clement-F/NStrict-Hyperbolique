@@ -24,14 +24,6 @@ program FiniteVolume
       end function godunov
    end interface
 
-   interface
-      function correct_Flux(u_,v_,dt,dx)
-      real, dimension(2), intent (in) :: u_,v_
-      real     :: dt,dx
-      real, dimension(2)              :: correct_Flux
-      end function correct_Flux
-   end interface
-
    
    interface
    function U_exa(x,t,wl,wr)
@@ -127,11 +119,11 @@ program FiniteVolume
       vitesse =0
       do i=0,nx-2
          
-      ! u_hat = (sqrt(U(1,i  ))/(sqrt(U(1,i))+ sqrt(U(1,i+1))))*(U(2,i  )/U(1,i  )) &
-      !       + (sqrt(U(1,i+1))/(sqrt(U(1,i))+ sqrt(U(1,i+1))))*(U(2,i+1)/U(1,i+1)) 
+      u_hat = (sqrt(U(1,i  ))/(sqrt(U(1,i))+ sqrt(U(1,i+1))))*(U(2,i  )/U(1,i  )) &
+            + (sqrt(U(1,i+1))/(sqrt(U(1,i))+ sqrt(U(1,i+1))))*(U(2,i+1)/U(1,i+1)) 
 
-         ! if(  abs(u_hat) >vitesse )   vitesse = abs(u_hat)
-         if(abs(U(2,i)/U(1,i)) >vitesse )   vitesse = abs(U(2,i)/U(1,i))
+         if(  abs(u_hat) >vitesse )   vitesse = abs(u_hat)
+         ! if(abs(U(2,i)/U(1,i)) >vitesse )   vitesse = abs(U(2,i)/U(1,i))
       end do
 
       if(vitesse >1e-20) then
@@ -140,29 +132,9 @@ program FiniteVolume
          print *,'hey'
          dt = cfl*dx 
       end if
-      
+      ! print *,"TIME =",t_, 'dt=',dt, 'dx=',dx
 
-      do i=0,nx
-         if(U(1,i)<1e-6) U(1,i) = 1e-6  
-         if(i==0) then
-            F(:,0)  = godunov(U(:,0),     U(:,0)) 
-            ! F_c(:,0)= correct_Flux(U(:,0),U(:,0), dt,dx)
-
-         else if(i==nx) then
-            F(:,nx) = godunov(U(:,nx-1),  U(:,nx-1)) 
-            ! F_c(:,nx)= correct_Flux(U(:,nx-1),U(:,nx-1), dt,dx)
-
-         else if(i /= 0 .and. i/=nx) then 
-            F(:,i)  = godunov(U(:,i-1),   U(:,i))
-            ! F_c(:,i)= correct_Flux(U(:,i-1),U(:,i), dt,dx)
-
-         end if
-         
-        
-      end do
-
-      U(:,:) = U(:,:)- ((dt/dx)* (F  (:,1:nx)-F  (:,0:nx-1))) 
-                     ! - ((dt/dx) *(F_c(:,1:nx)-F_c(:,0:nx-1)))
+      call correct_Flux(U,dt,dx,nx,F) 
 
       if(t_ >=  n_imp*t_imp)  then
          print *, "loop : ",n,", n_imp",n_imp,", time :",t_," ; ","dt : ",dt, ";"
