@@ -17,6 +17,24 @@ program FiniteVolume
       character(len=32),    intent(in), optional :: arg_string  ! (nom pb)
       real, dimension(:,:), intent(inout)  :: W
       end subroutine Q_init
+
+      
+      subroutine Update_LeVeque(Q,dt,dx,nx) 
+         implicit none
+         integer,intent(in)  :: nx
+         real, dimension(2,0:nx-1), intent(inout)  :: Q
+         real, intent(in) ::  dt,dx
+      end subroutine Update_LeVeque
+      
+      subroutine Q_exa(X,t,arg_string,arg_real)
+
+         implicit none
+         real, dimension(:),  intent(in)   :: X
+         real,                intent(in)   :: t
+         real, dimension(:),  intent(in), optional :: arg_real    ! (nb valeurs, nb cell, val pb)
+         character(len=32),   intent(in), optional :: arg_string  ! (nom pb)
+      end subroutine Q_exa
+
    end interface
    
 
@@ -38,9 +56,6 @@ program FiniteVolume
    real                 :: T
    real                 :: t_=-1.0,  dt=0.0
 
-!  Flux Numeriques
-   real, dimension(:,:),   Pointer :: F,F_c
-
 !  Solution scalaire
    real, dimension(:,:),   Pointer :: Q, Q_ex
    real,dimension (:,:),   Pointer :: sol
@@ -56,8 +71,8 @@ program FiniteVolume
 !  file parameter
    integer, parameter   :: numfile_sol=1, numfile_data=2, numfile_param=3, numfile_err =4, numfile_conv=5
    integer              :: n_imp_max, n_imp=1
-   real, dimension(:),  Pointer   :: t_imp
-   real, dimension(8)   :: t_imp_ref= (/-1.0,   -0.5, 0.0,  0.5,  1.0,  1.5,  3.5,  6.0 /)
+   ! real, dimension(:),  Pointer   :: t_imp
+   real, dimension(8)   :: t_imp= (/-1.0,   -0.5, 0.0,  0.5,  1.0,  1.5,  3.5,  6.0 /)
 
    character(len=32)    :: nomfile_sol = 'file_sol.txt',   nomfile_data = 'file_data.txt', nomfile_param = 'param.txt', nomfile_err = 'error_file.txt', &
                            nomfile_conv = 'convergence_err.txt'
@@ -93,32 +108,14 @@ program FiniteVolume
 
    dx = real((xf-xd))/nx
 
-   allocate(X(0:nx-1));   X(0:nx-1) = (/  (xd+ (i+0.5)*dx, i = 0,nx-1)  /)
+   allocate(X(1:nx));   X(1:nx) = (/  (xd+ (i-0.5)*dx, i = 1,nx)  /)
 
-   allocate(F(2,0:nx),     F_c(2,0:nx))
-   allocate(Q(2,0:nx-1),  Q_ex(2,0:nx-1))
+   allocate(Q(2,1:nx),  Q_ex(2,1:nx))
 
    allocate(sol(5,nx))
 
    call Q_init(X,Q, arg_string= pb_name, arg_real= (/ real(nb_val), real(nx), wl, wr, rhoL, uL, rhoR, uR /) )
-   
-   if(n_imp_max<=8) then
-
-      do i=1,8
-         if(t_imp_ref(i)>T) then
-            n_imp_max=i-1
-            exit
-         end if
-      end do
-
-   
-
-      print *, n_imp_max
-      allocate(t_imp(n_imp_max))
-      do i=1,n_imp_max; t_imp(i)= t_imp_ref(i); end do
-
-   end if
-
+   ! call Q_exa( X,t_,arg_string= pb_name, arg_real= (/ real(nb_val), real(nx), wl, wr, rhoL, uL, rhoR, uR /))
    print *, n_imp_max
 
    ! preparations des sorties
@@ -158,21 +155,20 @@ program FiniteVolume
       
       t_ = t_ +dt
 
-      call Update_LeVeque(Q,dt,dx,nx,F) 
+      call Update_LeVeque(Q=Q,dt=dt,dx= dx,nx =nx) 
+      ! print *, " n_imp",n_imp,", time :",t_," ; ","dt : ",dt, ";"
 
       if(t_ >=  t_imp(n_imp) ) then
          print *, "loop : ",n,", n_imp",n_imp,", time :",t_," ; ","dt : ",dt, ";"
 
-         ! do i=0,nx-1
-         !    Q_ex(:,i) = U_exa(X(i),t_,wl,wr) 
-         ! end do
+         ! call Q_exa(X,t_,Q)
 
          n_imp = n_imp +1
 
 
-         sol(1,:)=X(0:nx-1)
-         sol(2,:)=Q(1,0:nx-1);         sol(3,:)=Q(2,0:nx-1)
-         sol(4,:)=Q_ex(1,0:nx-1);      sol(5,:)=Q_ex(2,0:nx-1)
+         sol(1,:)=X(1:nx)
+         sol(2,:)=Q(1,1:nx);         sol(3,:)=Q(2,1:nx)
+         sol(4,:)=Q_ex(1,1:nx);      sol(5,:)=Q_ex(2,1:nx)
          write(unit=numfile_sol,  fmt=save_format) sol
 
          if(sum( abs(Q-Q_ex))*dx > err_L1) err_L1 = sum( abs(Q-Q_ex))*dx 

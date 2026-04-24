@@ -1,48 +1,50 @@
 
-function flux(u) result(f)
+function flux(Q) result(f)
    implicit none
-   real, dimension(2), intent(in)  :: u
+   real, dimension(2), intent(in)  :: Q
    real, dimension(2)              :: f
 
-   f(1) = u(2) 
-   f(2) = (u(2)/u(1))*u(2)
+   f(1) = Q(2) 
+   f(2) = (Q(2)/Q(1))*Q(2)
    return
 end function flux
 
-function godunov(u_,v_)
+function godunov(Ql,Qr)
    implicit none
-   real, dimension(2), intent(in)  :: u_,v_
+   real, dimension(2), intent(in)  :: Ql,Qr
    real, dimension(2)              :: godunov
 
    interface
-   function flux(u) result(f)
+   function flux(Q) result(f)
       implicit none
-      real, dimension(2), intent(in)  :: u
+      real, dimension(2), intent(in)  :: Q
       real, dimension(2)              :: f
    end function flux
    end interface
 
-   real              :: u_hat
+   real              :: u_hat,uL,uR,rhoL,rhoR
 
-   if((u_(2)/u_(1))<0 .and. 0<(v_(2)/v_(1))) then
+   rhoL = Ql(1); rhoR = Qr(1)
+   uL = Ql(2)/Ql(1); uR = Qr(2)/Qr(1)
+
+   if(uL<0 .and. 0<uR) then
       godunov = 0.
-      ! print *, "flux nul"
    else 
-      u_hat = (u_(2)/u_(1)) * (sqrt(u_(1))/(sqrt(u_(1)) + sqrt(v_(1)))) &
-            + (v_(2)/v_(1)) * (sqrt(v_(1))/(sqrt(u_(1)) + sqrt(v_(1))))
+      u_hat = uL*(sqrt(rhoL)/(sqrt(rhoL) + sqrt(rhoR))) &
+            + uR*(sqrt(rhoR)/(sqrt(rhoL) + sqrt(rhoR)))
 
       if(u_hat>0) then 
-         godunov = flux(u_)
+         godunov = flux(Ql)
 
       else if(u_hat<0) then
-         godunov = flux(v_)
+         godunov = flux(Qr)
 
       else if(u_hat==0) then
-         godunov = (flux(u_)+flux(v_))*0.5
+         godunov = (flux(Ql)+flux(Qr))*0.5
       print *, "delta choc"
 
       else 
-         ! print *, "ERROR"
+         print *, "ERROR"
 
       end if
    end if
@@ -51,11 +53,10 @@ function godunov(u_,v_)
    return
 end function godunov
 
-subroutine Update_LeVeque(U,dt,dx,nx,F) 
+subroutine Update_LeVeque(Q,dt,dx,nx) 
    implicit none
    integer,intent(in)  :: nx
-   real, dimension(2,0:nx-1), intent(inout)  :: U
-   real, dimension(2,0:nx),   intent(out) :: F
+   real, dimension(2,1:nx), intent(inout)  :: Q
 
    real, intent(in) ::  dt,dx
    
@@ -68,51 +69,58 @@ subroutine Update_LeVeque(U,dt,dx,nx,F)
    end interface
 
    interface
-   function flux(u) result(f)
+   function flux(Q) result(f)
       implicit none
-      real, dimension(2), intent(in)  :: u
+      real, dimension(2), intent(in)  :: Q
       real, dimension(2)              :: f
    end function flux
    end interface
 
    real   :: s1,s2
-   real, dimension(2)   :: z1,z2, z1_pred, z2_pred
-   real, dimension(2)   :: F_, F_pred
+   real, dimension(2,0:nx) :: F
+   real, dimension(2)   :: z1,z2, z1_pred=0, z2_pred=0
+   real, dimension(2)   :: F_=0, F_pred=0
    real                 :: u_hat, theta1, theta2, phi
+   real                 :: rhoL,rhoR,uL,uR
    integer :: i
 
-   
-   do i=0,nx
-      if(U(1,i)<1e-6) U(1,i) = 1e-6  
-      if(i==0) then
-         F(:,0)  = godunov(U(:,0),     U(:,0)) 
+
+   do i=1,nx
+      if(Q(1,i)<1e-20) Q(1,i) = 1e-20 
+
+      if(i==1) then
+         F(:,1)  = godunov(Q(:,1),     Q(:,1)) 
 
       else if(i==nx) then
-         F(:,nx) = godunov(U(:,nx-1),  U(:,nx-1)) 
+         F(:,nx) = godunov(Q(:,nx),  Q(:,nx)) 
 
-      else if(i /= 0 .and. i/=nx) then 
-         F(:,i)  = godunov(U(:,i-1),   U(:,i))
+      else if(i /= 1 .and. i/=nx) then 
+         F(:,i)  = godunov(Q(:,i),   Q(:,i+1))
 
       end if
    end do
-
+   
  
-   do i=0,nx-1
+   do i=2,nx-1
       s1=0;s2=0;
-      if((U(2,i-1)/U(1,i-1))<0 .and. 0<(U(2,i)/U(1,i))) then
-         z1 = -flux(U(:,i-1));   z2= flux(U(:,i))
-         s1 = U(2,i-1)/U(1,i-1); s2 = U(2,i)/U(1,i)
+      rhoL=Q(1,i);      rhoR =Q(1,i+1)
+      uL  =Q(2,i)/Q(1,i); uR =Q(2,i+1)/Q(1,i+1)
+
+
+      if(uL<0 .and. 0<uR) then
+         z1 = -flux(Q(:,i));  z2= flux(Q(:,i+1))
+         s1 = uL;  s2 =uR
 
       else  
-         u_hat = (U(2,i-1) /U(1,i-1))  * (sqrt(U(1,i-1))/(sqrt(U(1,i-1)) + sqrt(U(1,i)))) &
-               + (U(2,i)   /U(1,i))    * (sqrt(U(1,i))  /(sqrt(U(1,i-1)) + sqrt(U(1,i))))
+         u_hat = uL*(sqrt(rhoL)/(sqrt(rhoL) + sqrt(rhoR))) &
+            + uR*(sqrt(rhoR)/(sqrt(rhoL) + sqrt(rhoR)))
 
          if(u_hat<0) then
-            z1 = flux(U(:,i))-flux(U(:,i-1)); z2 =0
+            z1 = flux(Q(:,i))-flux(Q(:,i-1)); z2 =0
             s1 = u_hat; s2 = u_hat
 
          else 
-            z1 = 0; z2 = flux(U(:,i))-flux(U(:,i-1))
+            z1 = 0; z2 = flux(Q(:,i))-flux(Q(:,i-1))
             s1 = u_hat; s2 = u_hat
 
          end if
@@ -130,19 +138,26 @@ subroutine Update_LeVeque(U,dt,dx,nx,F)
       
       if(F_(1) /= F_(1)) call exit(0)
 
-      if( (U(1,i)-((dt/dx)* (F(1,i+1)-F(1,i))) - ((dt/dx)* (F_(1)-F_pred(1))))<0. )  then
+      if( (Q(1,i)-((dt/dx)* (F(1,i)-F(1,i-1))) - ((dt/dx)* (F_(1)-F_pred(1))))<0. )  then
 
-         U(:,i)= U(:,i)- ((dt/dx)* (F(:,i)-F(:,i-1)))
+         ! Q(:,i)= Q(:,i)- ((dt/dx)* (F(:,i)-F(:,i-1)))
          F_pred =0; z1_pred =0; z2_pred =0
 
       else 
-         U(:,i) = U(:,i)-((dt/dx)* (F(:,i+1)-F(:,i))) - ((dt/dx)* (F_-F_pred))
+         ! Q(:,i) = Q(:,i)-((dt/dx)* (F(:,i)-F(:,i-1))) - ((dt/dx)* (F_-F_pred))
+         if(abs(F_(1))>1e-6 .or.  (abs(F_(2))>1e-6) )print *, F_
+         F(:,i) = F(:,i) + F_
          z1_pred = z1; z2_pred = z2
          F_pred = F_
       end if
-   
-      if(U(1,i)<0.) call exit(0)
+      
+      if(Q(1,i)<0.) call exit(0)
+   end do
 
+
+
+   do i=1,nx
+      Q(:,i)= Q(:,i)- ((dt/dx)* (F(:,i)-F(:,i-1)))
    end do
 
 
@@ -150,12 +165,12 @@ subroutine Update_LeVeque(U,dt,dx,nx,F)
 
 end subroutine Update_LeVeque
 
-subroutine Q_init(x,W,arg_string,arg_real)
+subroutine Q_init(X,Q,arg_string,arg_real)
    implicit none
    real, dimension(:),  intent(in)    :: X
    real, dimension(:),  intent(in), optional :: arg_real    ! (nb valeurs, nb cell, val pb)
    character(len=32),   intent(in), optional :: arg_string  ! (nom pb)
-   real, dimension(:,:),intent(inout) :: W
+   real, dimension(:,:),intent(inout) :: Q
 
    integer :: i=0
 
@@ -168,7 +183,7 @@ subroutine Q_init(x,W,arg_string,arg_real)
    if(present(arg_real)) nx = arg_real(2)
    if(present(arg_string)) nom_pb = arg_string
 
-   W=0
+   Q=0
    print *, "Q_init"
    if(nom_pb=="gaz") then
       
@@ -180,65 +195,91 @@ subroutine Q_init(x,W,arg_string,arg_real)
 
       do i=1,nx
          if(X(i)>-wL-uL      .and. X(i)<-uL ) then
-            W(1,i) = rhoL; W(2,i)= rhoL*uL
+            Q(1,i) = rhoL; Q(2,i)= rhoL*uL
 
          else if (X(i)>-uR .and. X(i)<-uR+wR) then
-            W(1,i) = rhoR; W(2,i)= rhoR*uR
+            Q(1,i) = rhoR; Q(2,i)= rhoR*uR
 
          else
-            W(1,i)= 1e-6; W(2,i)=1e-6
+            Q(1,i)= 1e-20; Q(2,i)=1e-20
          end if
       end do
    end if
 
+   ! print *,Q
+
    return 
 end subroutine Q_init
 
-! function U_exa(x,t,wl,wr) result(u)
+subroutine Q_exa(X,t,arg_string,arg_real)
 
-!    implicit none
-!    real, intent(in)    :: x,t,wl,wr
-!    real, dimension(2)  :: u
-!    real  :: T1, T2,  R
-!    real, dimension(2)  :: ul,ur
-!    real  :: Xhi, u_hat
+   implicit none
+   real, dimension(:),  intent(in)   :: X
+   real,                intent(in)   :: t
+   real, dimension(:),  intent(in), optional :: arg_real    ! (nb valeurs, nb cell, val pb)
+   character(len=32),   intent(in), optional :: arg_string  ! (nom pb)
+
+   real, dimension(:,:), Pointer :: Q
+
+   real  :: T1, T2,  R
+   real  :: Xhi, u_hat
+   integer ::i
+
+   integer,          save :: nx
+   character(len=32),save :: nom_pb
+   real             ,save :: wL,wR,rhoL,rhoR,uL,uR
+
+   
+
+   print *,"init"
+   
+   if(present(arg_real)) nx = arg_real(2)
+   if(present(arg_string)) nom_pb = arg_string
+
+   allocate(Q(2,nx))
+
+   if(nom_pb=="gaz") then
+      print *,"pb gaz"
+      if(present(arg_real)) then; 
+         wL  = arg_real(3);wR= arg_real(4)
+         rhoL= arg_real(5);uL= arg_real(6)
+         rhoR= arg_real(7);uR= arg_real(8)
+      end if
 
 
-!    ul = U_init(-wl-1 +1e-2);   ur = U_init( wr+1-1e-6)
+      u_hat = uL*(sqrt(rhoL)/(sqrt(rhoL) + sqrt(rhoR))) &
+            + uR*(sqrt(rhoR)/(sqrt(rhoL) + sqrt(rhoR)))
+      R = rhoL/rhoR
 
-!    ! print *,wl, ul, wr, ur
+      T1 = wl/(uL-u_hat) 
+      T2 = (wr**2 +2*wr*wl*R + (wl**2) *R )/(2*wl*R*(uL - uR))
 
-!    u_hat = (ul(2)/ul(1)) * (sqrt(ul(1))/(sqrt(ul(1)) + sqrt(ur(1)))) &
-!          + (ur(2)/ur(1)) * (sqrt(ur(1))/(sqrt(ul(1)) + sqrt(ur(1))))
-!    R = ul(1)/ur(1)
+      Q=0
 
-!    T1 = wl/(   (ul(2)/ul(1))-u_hat) 
-!    T2 = (wr**2 +2*wr*wl*R + (wl**2) *R )/(2*wl*R*(ul(2)/ul(1) - ur(2)/ur(1)))
+      do i=1,nx
+      ! print *, "assign ",X(i)
+         if(t<0.0) then
+            if((X(i)+1.) -(t+1) <0. .and. (X(i)+1.+wl) -(t+1)>0.  ) Q =ul
+            if((X(i)-1.) +(t+1) >0. .and. (X(i)-1.-wr) +(t+1)<0.  ) Q =ur
+            
+         else if(t<T1) then
+            Xhi = u_hat*t
+            if((X(i)-xhi)<0. .and. (X(i)+1.+wl) -(t+1)>0.) then 
+               Q = ul
+            else if((X(i)-xhi)>0. .and. (X(i)-1.-wr) +(t+1)<0.) then
+               Q = ur
+            end if
 
-!    u=0
+         else if(t<T2) then
+            Xhi = uR*t -wl*R + sqrt(2*wl*R*(uL-uR)*t +wl**2 *(R**2-R))
+            if((X(i)-xhi)<0. .and. (X(i)+1.+wl) -(t+1)>0.) then 
+               Q = 0
+            else if((X(i)-xhi)>0. .and. (X(i)-1.-wr) +(t+1)<0.) then
+               Q = ur
+            end if
+         end if
+      end do
+   end if
+   return
 
-
-!    if(t<0.0) then
-!       if((x+1.) -(t+1) <0. .and. (x+1.+wl) -(t+1)>0.  ) u =ul
-!       if((x-1.) +(t+1) >0. .and. (x-1.-wr) +(t+1)<0.  ) u =ur
-      
-!    else if(t<T1) then
-!       Xhi = u_hat*t
-!       if((x-xhi)<0. .and. (x+1.+wl) -(t+1)>0.) then 
-!          u = ul
-!       else if((x-xhi)>0. .and. (x-1.-wr) +(t+1)<0.) then
-!          u = ur
-!       end if
-
-!    else if(t<T2) then
-!       Xhi = ur(2)/ur(1)*t -wl*R + sqrt(2*wl*R*(ul(2)/ul(1)-ur(2)/ur(1))*t +wl**2 *(R**2-R))
-!       if((x-xhi)<0. .and. (x+1.+wl) -(t+1)>0.) then 
-!          u = 0
-!       else if((x-xhi)>0. .and. (x-1.-wr) +(t+1)<0.) then
-!          u = ur
-!       end if
-!    end if
-
-!    return
-
-! end function U_exa
+end subroutine Q_exa
