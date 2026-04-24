@@ -1,8 +1,9 @@
 nt =   500
 nx =   500
-save_max =    5
+save_max =    6
 time_save = -0.983800
 time_save = -0.497800
 time_save =  0.004400
 time_save =  0.506600
-time_save =  1.000000
+time_save =  1.008800
+time_save =  1.510999

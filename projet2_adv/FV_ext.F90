@@ -150,79 +150,95 @@ subroutine Update_LeVeque(U,dt,dx,nx,F)
 
 end subroutine Update_LeVeque
 
-function U_init(x) result(U)
+subroutine Q_init(x,W,arg_string,arg_real)
    implicit none
-   real, intent(in)    :: x
-   real, dimension(2)  :: U
+   real, dimension(:),  intent(in)    :: X
+   real, dimension(:),  intent(in), optional :: arg_real    ! (nb valeurs, nb cell, val pb)
+   character(len=32),   intent(in), optional :: arg_string  ! (nom pb)
+   real, dimension(:,:),intent(inout) :: W
+
+   integer :: i=0
+
+   ! saving info
+   integer,          save :: nx
+   character(len=32),save :: nom_pb
+   real             ,save :: wL,wR,rhoL,rhoR,uL,uR
+
    
-   u=0
-   if(x>-2. .and. x<-1.) then
-      u(1) = 2; u(2)=2
+   if(present(arg_real)) nx = arg_real(2)
+   if(present(arg_string)) nom_pb = arg_string
 
-   else if (x>1. .and. x<5.) then
-      u(1) = 1; u(2)=-1
+   W=0
+   print *, "Q_init"
+   if(nom_pb=="gaz") then
+      
+      if(present(arg_real)) then; 
+         wL  = arg_real(3);wR= arg_real(4)
+         rhoL= arg_real(5);uL= arg_real(6)
+         rhoR= arg_real(7);uR= arg_real(8)
+      end if
 
-   else
-      u(1)= 1e-6; u(2)=1e-6
+      do i=1,nx
+         if(X(i)>-wL-uL      .and. X(i)<-uL ) then
+            W(1,i) = rhoL; W(2,i)= rhoL*uL
+
+         else if (X(i)>-uR .and. X(i)<-uR+wR) then
+            W(1,i) = rhoR; W(2,i)= rhoR*uR
+
+         else
+            W(1,i)= 1e-6; W(2,i)=1e-6
+         end if
+      end do
    end if
 
    return 
-end function U_init
+end subroutine Q_init
 
-function U_exa(x,t,wl,wr) result(u)
+! function U_exa(x,t,wl,wr) result(u)
 
-   implicit none
-   real, intent(in)    :: x,t,wl,wr
-   real, dimension(2)  :: u
-   real  :: T1, T2,  R
-   real, dimension(2)  :: ul,ur
-   real  :: Xhi, u_hat
-
-   
-   interface
-      function U_init(x) 
-         implicit none
-         real, intent(in)  :: x
-         real, dimension(2):: U_init
-      end function U_init
-   end interface
+!    implicit none
+!    real, intent(in)    :: x,t,wl,wr
+!    real, dimension(2)  :: u
+!    real  :: T1, T2,  R
+!    real, dimension(2)  :: ul,ur
+!    real  :: Xhi, u_hat
 
 
-   ul = U_init(-wl-1 +1e-2);   ur = U_init( wr+1-1e-6)
+!    ul = U_init(-wl-1 +1e-2);   ur = U_init( wr+1-1e-6)
 
-   ! print *,wl, ul, wr, ur
+!    ! print *,wl, ul, wr, ur
 
-   u_hat = (ul(2)/ul(1)) * (sqrt(ul(1))/(sqrt(ul(1)) + sqrt(ur(1)))) &
-         + (ur(2)/ur(1)) * (sqrt(ur(1))/(sqrt(ul(1)) + sqrt(ur(1))))
-   R = ul(1)/ur(1)
+!    u_hat = (ul(2)/ul(1)) * (sqrt(ul(1))/(sqrt(ul(1)) + sqrt(ur(1)))) &
+!          + (ur(2)/ur(1)) * (sqrt(ur(1))/(sqrt(ul(1)) + sqrt(ur(1))))
+!    R = ul(1)/ur(1)
 
-   T1 = wl/(   (ul(2)/ul(1))-u_hat) 
-   T2 = (wr**2 +2*wr*wl*R + (wl**2) *R )/(2*wl*R*(ul(2)/ul(1) - ur(2)/ur(1)))
+!    T1 = wl/(   (ul(2)/ul(1))-u_hat) 
+!    T2 = (wr**2 +2*wr*wl*R + (wl**2) *R )/(2*wl*R*(ul(2)/ul(1) - ur(2)/ur(1)))
 
-   u=0
+!    u=0
 
 
-   if(t<0.0) then
-      if((x+1.) -(t+1) <0. .and. (x+1.+wl) -(t+1)>0.  ) u =ul
-      if((x-1.) +(t+1) >0. .and. (x-1.-wr) +(t+1)<0.  ) u =ur
+!    if(t<0.0) then
+!       if((x+1.) -(t+1) <0. .and. (x+1.+wl) -(t+1)>0.  ) u =ul
+!       if((x-1.) +(t+1) >0. .and. (x-1.-wr) +(t+1)<0.  ) u =ur
       
-   else if(t<T1) then
-      Xhi = u_hat*t
-      if((x-xhi)<0. .and. (x+1.+wl) -(t+1)>0.) then 
-         u = ul
-      else if((x-xhi)>0. .and. (x-1.-wr) +(t+1)<0.) then
-         u = ur
-      end if
+!    else if(t<T1) then
+!       Xhi = u_hat*t
+!       if((x-xhi)<0. .and. (x+1.+wl) -(t+1)>0.) then 
+!          u = ul
+!       else if((x-xhi)>0. .and. (x-1.-wr) +(t+1)<0.) then
+!          u = ur
+!       end if
 
-   else if(t<T2) then
-      Xhi = ur(2)/ur(1)*t -wl*R + sqrt(2*wl*R*(ul(2)/ul(1)-ur(2)/ur(1))*t +wl**2 *(R**2-R))
-      if((x-xhi)<0. .and. (x+1.+wl) -(t+1)>0.) then 
-         u = 0
-      else if((x-xhi)>0. .and. (x-1.-wr) +(t+1)<0.) then
-         u = ur
-      end if
-   end if
+!    else if(t<T2) then
+!       Xhi = ur(2)/ur(1)*t -wl*R + sqrt(2*wl*R*(ul(2)/ul(1)-ur(2)/ur(1))*t +wl**2 *(R**2-R))
+!       if((x-xhi)<0. .and. (x+1.+wl) -(t+1)>0.) then 
+!          u = 0
+!       else if((x-xhi)>0. .and. (x-1.-wr) +(t+1)<0.) then
+!          u = ur
+!       end if
+!    end if
 
-   return
+!    return
 
-end function U_exa
+! end function U_exa
