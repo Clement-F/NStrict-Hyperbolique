@@ -11,18 +11,18 @@ program FiniteVolume
    end interface
 
    interface
-      subroutine  Q_init(X,W,arg_string,arg_real)
+      subroutine  Q_init(X,Q,arg_string,arg_real)
       real, dimension(:),   intent(in)    :: X
       real, dimension(:),   intent(in), optional :: arg_real    ! (nb valeurs, nb cell, val pb)
       character(len=32),    intent(in), optional :: arg_string  ! (nom pb)
-      real, dimension(:,:), intent(inout)  :: W
+      real, dimension(:,:), intent(inout)  :: Q
       end subroutine Q_init
 
       
       subroutine Update_LeVeque(Q,dt,dx,nx) 
          implicit none
          integer,intent(in)  :: nx
-         real, dimension(2,0:nx-1), intent(inout)  :: Q
+         real, dimension(2,1:nx), intent(inout)  :: Q
          real, intent(in) ::  dt,dx
       end subroutine Update_LeVeque
       
@@ -59,6 +59,7 @@ program FiniteVolume
 !  Solution scalaire
    real, dimension(:,:),   Pointer :: Q, Q_ex
    real,dimension (:,:),   Pointer :: sol
+   integer :: is_allocated
 
 !  diverses valeurs numériques nécessaire
    real     :: vitesse, cfl, u_hat
@@ -90,6 +91,8 @@ program FiniteVolume
 
    ! declaration et callibrations des variables 
 
+   print *, pb_name
+
    open(unit=numfile_param, file=nomfile_param, form ='formatted', status ='old')
 
    read(numfile_param,  *) nx;  
@@ -108,21 +111,24 @@ program FiniteVolume
 
    dx = real((xf-xd))/nx
 
-   allocate(X(1:nx));   X(1:nx) = (/  (xd+ (i-0.5)*dx, i = 1,nx)  /)
-
-   allocate(Q(2,1:nx),  Q_ex(2,1:nx))
-
-   allocate(sol(5,nx))
+   allocate(X(1:nx),  stat=is_allocated);   X(1:nx) = (/  (xd+ (i-0.5)*dx, i = 1,nx)  /); print *, "is X alloc :",is_allocated
+   allocate(Q(2,nx),  stat=is_allocated);    print *, "is Q alloc :",is_allocated
+   allocate(Q_ex(2,nx),stat=is_allocated);   print *, "is Qex alloc :",is_allocated
+   allocate(sol(5,nx),stat=is_allocated);    print *, "is sol alloc :",is_allocated
 
    call Q_init(X,Q, arg_string= pb_name, arg_real= (/ real(nb_val), real(nx), wl, wr, rhoL, uL, rhoR, uR /) )
    ! call Q_exa( X,t_,arg_string= pb_name, arg_real= (/ real(nb_val), real(nx), wl, wr, rhoL, uL, rhoR, uR /))
    print *, n_imp_max
 
+   Q_ex = 0
+
    ! preparations des sorties
 
-   print *, "init"
+   print *, "write"
    
    write(save_format, '("(" i5 "(f10.6, f12.8, f12.8, f12.8, f12.8 /))")') nx 
+
+   print *, save_format
 
    open(unit=numfile_data, file=nomfile_data, form ='formatted', status ='old')   
    write(unit= numfile_data, fmt='("nt = "i5)') nt
@@ -133,8 +139,13 @@ program FiniteVolume
    open(unit=numfile_err,  file=nomfile_err, form ='formatted', status ='old')
 
 !  boucle while sur le temps 
+
+   print *,"init"
+
    do while (t_<real(T))
       n = n +1
+
+      if (.not. associated(Q)) print *, "the Sol is desassociated " 
 
       vitesse =0
       do i=0,nx-2
@@ -143,8 +154,9 @@ program FiniteVolume
             + (sqrt(Q(1,i+1))/(sqrt(Q(1,i))+ sqrt(Q(1,i+1))))*(Q(2,i+1)/Q(1,i+1)) 
 
          if(  abs(u_hat) >vitesse )   vitesse = abs(u_hat)
-         ! if(abs(Q(2,i)/Q(1,i)) >vitesse )   vitesse = abs(Q(2,i)/Q(1,i))
       end do
+
+      ! print *,"max vitesse calc"
 
       if(vitesse >1e-20) then
          dt = min(cfl * dx /(2* vitesse), abs(T-t_))
@@ -153,32 +165,38 @@ program FiniteVolume
          dt = cfl*dx 
       end if
       
+      ! print *,dt
+
       t_ = t_ +dt
 
       call Update_LeVeque(Q=Q,dt=dt,dx= dx,nx =nx) 
-      ! print *, " n_imp",n_imp,", time :",t_," ; ","dt : ",dt, ";"
+      print *, " n_imp",n_imp,", time :",t_," ; ","dt : ",dt, ";"
 
-      if(t_ >=  t_imp(n_imp) ) then
+      ! if(t_ >=  t_imp(n_imp) ) then
          print *, "loop : ",n,", n_imp",n_imp,", time :",t_," ; ","dt : ",dt, ";"
 
-         ! call Q_exa(X,t_,Q)
+         ! call Q_exa(X,t_,Q_ex)
 
          n_imp = n_imp +1
 
 
-         sol(1,:)=X(1:nx)
-         sol(2,:)=Q(1,1:nx);         sol(3,:)=Q(2,1:nx)
-         sol(4,:)=Q_ex(1,1:nx);      sol(5,:)=Q_ex(2,1:nx)
+         if (.not. associated(Q)) print *, "the Sol is desassociated " 
+
+         sol(1,:)=X(1:nx);
+         sol(2,1:nx)=Q(1,1:nx);         
+         sol(3,1:nx)=Q(2,1:nx);
+         sol(4,:)=Q_ex(1,1:nx);      
+         sol(5,:)=Q_ex(2,1:nx);
          write(unit=numfile_sol,  fmt=save_format) sol
 
-         if(sum( abs(Q-Q_ex))*dx > err_L1) err_L1 = sum( abs(Q-Q_ex))*dx 
-         if(sum( (Q-Q_ex)**2)*dx > err_L2) err_L2 = sum( (Q-Q_ex)**2)*dx 
+         ! if(sum( abs(Q-Q_ex))*dx > err_L1) err_L1 = sum( abs(Q-Q_ex))*dx 
+         ! if(sum( (Q-Q_ex)**2)*dx > err_L2) err_L2 = sum( (Q-Q_ex)**2)*dx 
 
-         write(unit=numfile_err, fmt='(" --------------- at time : "f10.6" ----------------- ")') t_ 
-         write(unit=numfile_err, fmt='("err_L1 :" f16.10 )') sum( abs(Q-Q_ex))*dx 
-         write(unit=numfile_err, fmt='("err_L2 :" f16.10 )') sum( (Q-Q_ex)**2)*dx   
+         ! write(unit=numfile_err, fmt='(" --------------- at time : "f10.6" ----------------- ")') t_ 
+         ! write(unit=numfile_err, fmt='("err_L1 :" f16.10 )') sum( abs(Q-Q_ex))*dx 
+         ! write(unit=numfile_err, fmt='("err_L2 :" f16.10 )') sum( (Q-Q_ex)**2)*dx   
          write(unit=numfile_data, fmt='("time_save =" f10.6)')  t_
-      end if
+      ! end if
       
    end do
    
@@ -187,14 +205,13 @@ program FiniteVolume
    close(unit=numfile_param)
    close(unit=numfile_sol)
 
-   open(unit=numfile_conv,  file=nomfile_conv, form ='formatted', status ='old', position='append')
-   write(unit=numfile_conv, fmt='("=====================")') 
-   write(unit=numfile_conv, fmt='("for nx = "i5" we have error :")' ) nx
-   write(unit=numfile_conv, fmt='("err_L1 :" f16.10 )') sum( abs(Q-Q_ex))*dx 
-   write(unit=numfile_conv, fmt='("err_L2 :" f16.10 )') sum( (Q-Q_ex)**2)*dx  
-   write(unit=numfile_conv, fmt='("=====================")') 
-
-   close(unit=numfile_conv)
+   ! open(unit=numfile_conv,  file=nomfile_conv, form ='formatted', status ='old', position='append')
+   ! write(unit=numfile_conv, fmt='("=====================")') 
+   ! write(unit=numfile_conv, fmt='("for nx = "i5" we have error :")' ) nx
+   ! write(unit=numfile_conv, fmt='("err_L1 :" f16.10 )') sum( abs(Q-Q_ex))*dx 
+   ! write(unit=numfile_conv, fmt='("err_L2 :" f16.10 )') sum( (Q-Q_ex)**2)*dx  
+   ! write(unit=numfile_conv, fmt='("=====================")') 
+   ! close(unit=numfile_conv)
 
    print *, "program complete !"
 
