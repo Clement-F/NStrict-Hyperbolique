@@ -51,10 +51,10 @@ for k in range(0,sm):
         
     plt.title("ondes à temps :"+str(T[k]))    
     plt.plot(X,U[0][k],'g')
-    #plt.plot(X,U_ex[0][k],'b')
-    plt.plot(X,U[1][k],'k')
+    plt.plot(X,U_ex[0][k],'b')
+    #plt.plot(X,U[1][k],'k')
         
-    #plt.plot(X,U[0][k] - U_ex[0][k],'r')
+    plt.plot(X,U[0][k] - U_ex[0][k],'r')
     #plt.plot(X,U[1][k]/U[0][k],'b')
     plt.ylim(-2,3); plt.xlim(X[1],X[-1])
     plt.show()

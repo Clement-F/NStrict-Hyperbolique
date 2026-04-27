@@ -184,7 +184,8 @@ subroutine Update_LeVeque(Q,dt,dx,nx)
       if( (Q(1,i)-((dt/dx)* (F(1,i)-F(1,i-1))) - ((dt/dx)* (F_(1) -F_pred(1)) ))<0. )  then
          z1c(:,i-1)=0; z2c(:,i-1)=0;
          z1c(:,i)  =0; z2c(:,i)  =0;
-         F_pred =0; print *, "nul",i
+         F_pred =0; 
+         ! print *, "nul",i
       else 
          z1c(:,i)=z1(:,i)*phi1; z2c(:,i)=z2(:,i)*phi2;
          F_pred = F_
@@ -259,75 +260,71 @@ subroutine Q_init(X,Q,arg_string,arg_real)
    return 
 end subroutine Q_init
 
-! subroutine Q_exa(X,t,arg_string,arg_real)
+subroutine Q_exa(X,t,Q_ex,arg_string,arg_real)
 
-!    implicit none
-!    real, dimension(:),  intent(in)   :: X
-!    real,                intent(in)   :: t
-!    real, dimension(:),  intent(in), optional :: arg_real    ! (nb valeurs, nb cell, val pb)
-!    character(len=32),   intent(in), optional :: arg_string  ! (nom pb)
+   implicit none
+   real, dimension(:),  intent(in)   :: X
+   real,                intent(in)   :: t
+   real, dimension(:),  intent(in), optional :: arg_real    ! (nb valeurs, nb cell, val pb)
+   character(len=32),   intent(in), optional :: arg_string  ! (nom pb)
 
-!    real, dimension(:,:), Pointer :: Q
+   real, dimension(:,:),intent(out), Pointer :: Q_ex
 
-!    real  :: T1, T2,  R
-!    real  :: Xhi, u_hat
-!    integer ::i
+   real  :: T1, T2,  R
+   real  :: Xhi, u_hat
+   integer ::i
 
-!    integer,          save :: nx
-!    character(len=32),save :: nom_pb
-!    real             ,save :: wL,wR,rhoL,rhoR,uL,uR
-
+   integer,          save :: nx
+   character(len=32),save :: nom_pb
+   real             ,save :: wL,wR,rhoL,rhoR,uL,uR
    
+   if(present(arg_real)) nx = arg_real(2)
+   if(present(arg_string)) nom_pb = arg_string
 
-!    print *,"init"
-   
-!    if(present(arg_real)) nx = arg_real(2)
-!    if(present(arg_string)) nom_pb = arg_string
+   allocate(Q_ex(2,nx))
 
-!    allocate(Q(2,nx))
+   if(nom_pb=="gaz") then
+      if(present(arg_real)) then; 
+         wL  = arg_real(3);wR= arg_real(4)
+         rhoL= arg_real(5);uL= arg_real(6)
+         rhoR= arg_real(7);uR= arg_real(8)
+      end if
 
-!    if(nom_pb=="gaz") then
-!       print *,"pb gaz"
-!       if(present(arg_real)) then; 
-!          wL  = arg_real(3);wR= arg_real(4)
-!          rhoL= arg_real(5);uL= arg_real(6)
-!          rhoR= arg_real(7);uR= arg_real(8)
-!       end if
+      u_hat = uL*(sqrt(rhoL)/(sqrt(rhoL) + sqrt(rhoR))) &
+            + uR*(sqrt(rhoR)/(sqrt(rhoL) + sqrt(rhoR)))
+      R = rhoL/rhoR
 
+      T1 = wl/(uL-u_hat) 
+      T2 = (wr**2 +2*wr*wl*R + (wl**2) *R )/(2*wl*R*(uL - uR))
 
-!       u_hat = uL*(sqrt(rhoL)/(sqrt(rhoL) + sqrt(rhoR))) &
-!             + uR*(sqrt(rhoR)/(sqrt(rhoL) + sqrt(rhoR)))
-!       R = rhoL/rhoR
+      Q_ex=0
 
-!       T1 = wl/(uL-u_hat) 
-!       T2 = (wr**2 +2*wr*wl*R + (wl**2) *R )/(2*wl*R*(uL - uR))
+      do i=1,nx
+      ! print *, "assign ",X(i)
+         if(t<0.0) then
+            if((X(i)+1.) -(t+1) <0. .and. (X(i)+1.+wl) -(t+1)>0.  ) then
+               Q_ex(1,i) =rhoL; Q_ex(2,i) =rhoL*ul
+            else if((X(i)-1.) +(t+1) >0. .and. (X(i)-1.-wr) +(t+1)<0.  ) then
+               Q_ex(1,i) =rhoR; Q_ex(2,i) =rhoR*ur
+            end if
+         else if(t<T1) then
+            Xhi = u_hat*t
+            if((X(i)-xhi)<0. .and. (X(i)+1.+wl) -(t+1)>0.) then 
+               Q_ex(1,i) =rhoL; Q_ex(2,i) =rhoL*ul
+            else if((X(i)-xhi)>0. .and. (X(i)-1.-wr) +(t+1)<0.) then
+               Q_ex(1,i) =rhoR; Q_ex(2,i) =rhoR*ur
+            end if
 
-!       Q=0
+         else if(t<T2) then
+            Xhi = uR*t -wl*R + sqrt(2*wl*R*(uL-uR)*t +wl**2 *(R**2-R))
+            if((X(i)-xhi)<0. .and. (X(i)+1.+wl) -(t+1)>0.) then 
+               Q_ex(:,i) = 0
+            else if((X(i)-xhi)>0. .and. (X(i)-1.-wr) +(t+1)<0.) then
+               Q_ex(1,i) =rhoR; Q_ex(2,i) =rhoR*ur
+            end if
+         end if
+      end do
+   end if
+   return
 
-!       do i=1,nx
-!       ! print *, "assign ",X(i)
-!          if(t<0.0) then
-!             if((X(i)+1.) -(t+1) <0. .and. (X(i)+1.+wl) -(t+1)>0.  ) Q =ul
-!             if((X(i)-1.) +(t+1) >0. .and. (X(i)-1.-wr) +(t+1)<0.  ) Q =ur
-            
-!          else if(t<T1) then
-!             Xhi = u_hat*t
-!             if((X(i)-xhi)<0. .and. (X(i)+1.+wl) -(t+1)>0.) then 
-!                Q = ul
-!             else if((X(i)-xhi)>0. .and. (X(i)-1.-wr) +(t+1)<0.) then
-!                Q = ur
-!             end if
-
-!          else if(t<T2) then
-!             Xhi = uR*t -wl*R + sqrt(2*wl*R*(uL-uR)*t +wl**2 *(R**2-R))
-!             if((X(i)-xhi)<0. .and. (X(i)+1.+wl) -(t+1)>0.) then 
-!                Q = 0
-!             else if((X(i)-xhi)>0. .and. (X(i)-1.-wr) +(t+1)<0.) then
-!                Q = ur
-!             end if
-!          end if
-!       end do
-!    end if
-!    return
-
-! end subroutine Q_exa
+end subroutine Q_exa

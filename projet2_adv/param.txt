@@ -1,11 +1,11 @@
-5000            | nx 
+400            | nx 
 -3.0            | xd
 6.0             | xf
 6.5             | T
-0.9             | cfl
+0.95             | cfl
 8              | number of screenshots
 1.0             | épaisseur gauche
-3.0             | épaisseur droite
+50.0             | épaisseur droite
 1.0             | vitesse gauche
 -1.0             | vitesse droite
 2.0             | densite gauche
