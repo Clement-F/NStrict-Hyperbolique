@@ -170,9 +170,8 @@ program FiniteVolume
       t_ = t_ +dt
 
       call Update_LeVeque(Q=Q,dt=dt,dx= dx,nx =nx) 
-      print *, " n_imp",n_imp,", time :",t_," ; ","dt : ",dt, ";"
 
-      ! if(t_ >=  t_imp(n_imp) ) then
+      if(t_ >=  t_imp(n_imp) ) then
          print *, "loop : ",n,", n_imp",n_imp,", time :",t_," ; ","dt : ",dt, ";"
 
          ! call Q_exa(X,t_,Q_ex)
@@ -196,7 +195,7 @@ program FiniteVolume
          ! write(unit=numfile_err, fmt='("err_L1 :" f16.10 )') sum( abs(Q-Q_ex))*dx 
          ! write(unit=numfile_err, fmt='("err_L2 :" f16.10 )') sum( (Q-Q_ex)**2)*dx   
          write(unit=numfile_data, fmt='("time_save =" f10.6)')  t_
-      ! end if
+      end if
       
    end do
    

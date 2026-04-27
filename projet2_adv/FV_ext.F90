@@ -45,6 +45,7 @@ function godunov(Ql,Qr)
 
       else 
          print *, "ERROR", Ql, Qr
+         godunov = 0.
 
       end if
    end if
@@ -77,9 +78,10 @@ subroutine Update_LeVeque(Q,dt,dx,nx)
    end interface
 
    real   :: s1,s2
-   real*8, dimension(2,nx) :: F
-   real, dimension(2,nx) :: z1,z2,s, z1c,z2c
-   real*8, dimension(2)   :: F_=0, F_pred=0
+   real, dimension(2,nx) :: F
+   real, dimension(2,nx) :: z1,z2, z1c,z2c
+   real, dimension(2,nx)   :: s
+   real, dimension(2)   :: F_=0, F_pred=0
    real                 :: u_hat, theta1, theta2, phi1,phi2
    real                 :: rhoL,rhoR,uL,uR
    integer :: i
@@ -118,13 +120,15 @@ subroutine Update_LeVeque(Q,dt,dx,nx)
                + uR*(sqrt(rhoR)/(sqrt(rhoL) + sqrt(rhoR)))
 
          if(u_hat<0) then
-            z1(:,i) = flux(Q(:,i))-flux(Q(:,i-1)); z2(:,i) =0
-            ! z1(:,i) = Q(:,i) - Q(:,i-1); z2(:,i) =0
+            ! z1(:,i) = flux(Q(:,i))-flux(Q(:,i-1)); z2(:,i) =0
+            z1(:,i) = Q(:,i+1) - Q(:,i); z2(:,i) =0
+
             s(1,i) = u_hat; s(2,i) = u_hat
 
          else 
-            z1(:,i) = 0; z2(:,i) = flux(Q(:,i))-flux(Q(:,i-1))
-            ! z1(:,i) = 0; z2(:,i) = Q(:,i)-Q(:,i-1)
+            ! z1(:,i) = 0; z2(:,i) = flux(Q(:,i))-flux(Q(:,i-1))
+            z1(:,i) = 0; z2(:,i) = Q(:,i+1)-Q(:,i)
+
             s(1,i) = u_hat; s(2,i) = u_hat
 
          end if
@@ -132,11 +136,7 @@ subroutine Update_LeVeque(Q,dt,dx,nx)
       end if      
       if(Q(1,i)<0.) call exit(0)
 
-      ! print *,i,rhoL,rhoR, ul,ur
-
    end do
-
-   ! print *, "correct flux calc"
 
    do i=2,nx-1
       
@@ -150,19 +150,34 @@ subroutine Update_LeVeque(Q,dt,dx,nx)
       if(phi1 /= phi1)  print *,'Phi1',phi1
       if(phi2 /= phi2)  print *,'Phi2',phi2
 
-      if(abs(z1(1,i))> 1e-10 .or. abs(z1(2,i)) > 1e-10) theta1 = (z1(1,i)*z1(1,i-1) + z1(2,i)*z1(2,i-1))/(z1(1,i)*z1(1,i) + z1(2,i)*z1(2,i))
-      if(abs(z2(1,i))> 1e-10 .or. abs(z2(2,i)) > 1e-10) theta2 = (z2(1,i)*z2(1,i-1) + z2(2,i)*z2(2,i-1))/(z2(1,i)*z2(1,i) + z2(2,i)*z2(2,i))
+      if(s(1,i)>0 .or. s(2,i)>0) then 
+         ! print *,'upwind'
+         if(abs(z1(1,i))> 1e-10 .or. abs(z1(2,i)) > 1e-10) theta1 = (z1(1,i)*z1(1,i-1) + z1(2,i)*z1(2,i-1))/(z1(1,i)*z1(1,i) + z1(2,i)*z1(2,i))
+         if(abs(z2(1,i))> 1e-10 .or. abs(z2(2,i)) > 1e-10) theta2 = (z2(1,i)*z2(1,i-1) + z2(2,i)*z2(2,i-1))/(z2(1,i)*z2(1,i) + z2(2,i)*z2(2,i))
+
+      else 
+         ! print *,'downwind'
+         if(abs(z1(1,i))> 1e-10 .or. abs(z1(2,i)) > 1e-10) theta1 = (z1(1,i)*z1(1,i+1) + z1(2,i)*z1(2,i+1))/(z1(1,i)*z1(1,i) + z1(2,i)*z1(2,i))
+         if(abs(z2(1,i))> 1e-10 .or. abs(z2(2,i)) > 1e-10) theta2 = (z2(1,i)*z2(1,i+1) + z2(2,i)*z2(2,i+1))/(z2(1,i)*z2(1,i) + z2(2,i)*z2(2,i))
+      
+      end if
 
       if(theta1 /=theta1 ) print *,i,"theta1",z1(:,i),z1(:,i-1)
       if(theta2 /=theta2 ) print *,i,"theta2",z2(:,i),z2(:,i-1)
 
-      phi1 = max(0.,min(1.,theta1));  
-      phi2 = max(0.,min(1.,theta2));  
+      phi1 = max(0.,min(1.,(theta1)));  
+      phi2 = max(0.,min(1.,(theta2)));  
 
-      F_ = 0.5*(    sign(1.,s(1,i)) * (1-(dt/dx) *abs(s(2,i))))*(z1(:,i)*phi1)
-      F_ = F_+ 0.5*(sign(1.,s(2,i)) * (1-(dt/dx) *abs(s(1,i))))*(z2(:,i)*phi2)
+      ! print *, theta1, phi1
+      ! print *, theta2, phi2
 
-      if(F_(1) /=0 .or. F_(2) /=0) print *,"F_ :",F_
+      ! F_ = 0.5*(    sign(1.,s(1,i)) * (1-(dt/dx) *abs(s(2,i))))*(z1(:,i)*phi1)
+      ! F_ = F_+ 0.5*(sign(1.,s(2,i)) * (1-(dt/dx) *abs(s(1,i))))*(z2(:,i)*phi2)
+
+      F_ = 0.5*(    abs(s(1,i)) * (1-(dt/dx) *abs(s(2,i))))*(z1(:,i)*phi1)
+      F_ = F_+ 0.5*(abs(s(2,i)) * (1-(dt/dx) *abs(s(1,i))))*(z2(:,i)*phi2)
+
+      ! if(F_(1) /=0 .or. F_(2) /=0) print *,"F_ :",F_
       
       if(F_(1) /= F_(1)) call exit(0)
 
@@ -179,8 +194,13 @@ subroutine Update_LeVeque(Q,dt,dx,nx)
    ! print *, "limited flux calc"
 
    do i=2,nx-1
-      F_ = 0.5*(    sign(1.,s(1,i)) * (1-(dt/dx) *abs(s(2,i))))*z1c(:,i)
-      F_ = F_+ 0.5*(sign(1.,s(2,i)) * (1-(dt/dx) *abs(s(1,i))))*z2c(:,i)
+      ! F_ = 0.5*(    sign(real(1.),s(1,i)) * (1-(dt/dx) *abs(s(2,i))))*z1c(:,i)
+      ! F_ = F_+ 0.5*(sign(real(1.),s(2,i)) * (1-(dt/dx) *abs(s(1,i))))*z2c(:,i)
+
+      
+      F_ = 0.5*(    abs(s(1,i)) * (1-(dt/dx) *abs(s(2,i))))*(z1c(:,i)*phi1)
+      F_ = F_+ 0.5*(abs(s(2,i)) * (1-(dt/dx) *abs(s(1,i))))*(z2c(:,i)*phi2)
+
       F(:,i) = F(:,i) + F_
 
       Q(:,i)= Q(:,i)- ((dt/dx)* (F(:,i)-F(:,i-1)))

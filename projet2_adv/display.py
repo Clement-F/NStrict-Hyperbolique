@@ -6,7 +6,7 @@ with open('file_data.txt') as f:
 
 nt = int(lines[0][5:11])
 nx = int(lines[1][5:11])
-sm = int(lines[2][12:16])
+sm = int(lines[2][12:20])
 
 T=[]
 for k in range(3,3+sm):
