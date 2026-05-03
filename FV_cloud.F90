@@ -174,7 +174,7 @@ program FiniteVolume
             dt = min(cfl * dx /(2* vitesse), abs(T-t_))
          else
             dt = cfl*dx/2 
-            print *,'pas de temps trop petit, forcage du pas de temps', dt
+            print *,'pas de temps trop petit, forcage du pas de temps',n, dt,t_
          end if
 
    ! sauvegarde 

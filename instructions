@@ -34,7 +34,7 @@ INSTRUCTIONS
 FACULTATIF
 Essayer d’améliorer la raideur des fronts de discontinuité, 
 ✔soit en suivant les corrections d’ordre proposées par l’auteur (pages 322–323, lire éventuellement [10], [11]), 
-soit en utilisant les reconstructions limitées de pentes (si déjà vues en V03). 
+✔soit en utilisant les reconstructions limitées de pentes (si déjà vues en V03). 
 Notons que la formule (25) généralise (24), que LeVeque avait suggérée pour les systèmes strictement hyperboliques.
 ✔Simuler le test de la section §3 : collision d’un nuage fini et d’un nuage semi-infini.
 

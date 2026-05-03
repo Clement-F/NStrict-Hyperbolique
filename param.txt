@@ -1,14 +1,14 @@
 1000            | nx 
 -3.0            | xd
 6.0             | xf
-6.5             | T
-1.999            | cfl
-8              | number of screenshots
+6.1             | T
+0.9             | cfl
+8               | number of screenshots
 -----------------------------------------------
-godunov         | methode update : godunov, Lax, LeVeque, limitation
+LeVeque      | methode update : godunov, Lax, LeVeque, limitation
 1.0             | épaisseur gauche
 3.0             | épaisseur droite
 1.0             | vitesse gauche
--1.0             | vitesse droite
+-1.0            | vitesse droite
 2.0             | densite gauche
 1.0             | densite droite

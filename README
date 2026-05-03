@@ -1,0 +1,23 @@
+Ceci est un projet en lien avec le cours V06 dispensé entre Orsay et Versaille.
+Il concerne la simulation numérique d'un choc entre deux nuages de poussiere dans le problème de gaz sans pression.
+
+La résolution du problème se fait au choix par 4 schéma numérique différents : godunov, Lax-Friedrich, LeVeque, reconstruction de flux limité.
+Le choix du schéma numérique se fait dans le fichier : param.txt
+
+Ce fichier contient d'autres choix concernant le choix du problème : tailles des deux nuages ainsi que leurs paramètres.
+ou des paramètres de la simulation : temps de fin, nombres de cellules, critères cfl, domaine spatial.
+
+une fois le choix des paramètres effectué, utiliser le makefile pour crée un fichier a.exe que l'on lancera par la suite
+si l'on choisit de changer les paramètres, il n'y a pas besoin de relancer le makefile.
+
+
+FV_cloud.F90 contient la routine principale de la résolution du problème.
+FV_ext.F90 contient toutes les autres fonctions nécessaire au problème.
+
+file_data.txt contient les paramètres du problème et les temps de captures des solutions
+file_sol.txt contient la solution numérique et exacte en ces temps de captures.
+error_file.txt contient le max de l'erreur numérique pour différentes normes spatial.
+convergence.txt est le seul fichier qui n'est pas réinitialisé à chaque executions. Il sert à voir la convergence des différents schémas numériques. Il contient le max des erreurs aux cours de chaque simulations
+
+display.py permet de voir la solution aux différents temps de captures.
+convergence.py permet de plotter la convergence des différents schémas.

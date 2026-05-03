@@ -546,11 +546,11 @@ subroutine Update(Q,X,dt,nx, arg_string)
          Q(:,i)= Q(:,i)- ((dt/dx)* (F(:,i)-F(:,i-1)))
       end do
 
-         return 
+      return 
 
    else if(methode_update == "limitation") then
 
-      allocate(Q_int(2,1:nx));
+      allocate(Q_int(2,1:nx)); Q_int =0
       allocate(delta(2,1:nx)); delta = 0
       alpha = 0.2
 
@@ -582,41 +582,48 @@ subroutine Update(Q,X,dt,nx, arg_string)
         end if
       end do
 
+      ! ! ordre 1 en temps
       do i=1,nx
-         Q_int(:,i)= Q(:,i)- ((dt/(2*dx))* (F(:,i)-F(:,i-1)))
+         Q(:,i)= Q(:,i)- ((dt/(dx))* (F(:,i)-F(:,i-1)))
       end do 
 
-      ! delta(i,j) = (Q(i,j+1)-Q(i,j-1)/(2*dx))
-      delta(1,1)  = (Q_int(1,2)-Q_int(1,1))/(2*dx);      delta(2,1)  = (Q_int(2,2) -Q_int(2,1))/(2*dx);  
-      delta(1,nx) = (Q_int(1,nx)-Q_int(1,nx-1))/(2*dx);  delta(2,nx) = (Q_int(2,nx)-Q_int(2,nx-1))/(2*dx);
-      do i=2,nx-1
-         delta(1,i) = (Q_int(1,i+1)-Q_int(1,i-1))/(2*dx);
-         delta(2,i) = (Q_int(2,i+1)-Q_int(2,i-1))/(2*dx)
-      end do
 
-      delta(1,1)    = minmod(delta(1,1),   2*alpha* (Q_int(1,1)-Q_int(1,1))/dx,      2*alpha* (Q_int(1,2)-Q_int(1,1))/dx)
-      delta(2,1)    = minmod(delta(2,1),   2*alpha* (Q_int(2,1)-Q_int(2,1))/dx,      2*alpha* (Q_int(2,1)-Q_int(2,1))/dx)
+      ! ! ordre 2 en temps
+      ! do i=1,nx
+      !    Q_int(:,i)= Q(:,i)- ((dt/(2*dx))* (F(:,i)-F(:,i-1)))
+      ! end do 
 
-      delta(1,nx)   = minmod(delta(1,nx),  2*alpha* (Q_int(1,nx)-Q_int(1,nx-1))/dx,  2*alpha* (Q_int(1,nx)-Q_int(1,nx))/dx)
-      delta(2,nx)   = minmod(delta(2,nx),  2*alpha* (Q_int(2,nx)-Q_int(2,nx-1))/dx,  2*alpha* (Q_int(2,nx)-Q_int(2,nx))/dx)
+      ! ! delta(i,j) = (Q(i,j+1)-Q(i,j-1)/(2*dx))
+      ! delta(1,1)  = (Q_int(1,2)-Q_int(1,1))/(2*dx);      delta(2,1)  = (Q_int(2,2) -Q_int(2,1))/(2*dx);  
+      ! delta(1,nx) = (Q_int(1,nx)-Q_int(1,nx-1))/(2*dx);  delta(2,nx) = (Q_int(2,nx)-Q_int(2,nx-1))/(2*dx);
+      ! do i=2,nx-1
+      !    delta(1,i) = (Q_int(1,i+1)-Q_int(1,i-1))/(2*dx);
+      !    delta(2,i) = (Q_int(2,i+1)-Q_int(2,i-1))/(2*dx)
+      ! end do
 
-      do i=2,nx-1
-         delta(1,i) = minmod(delta(1,i),2*alpha* (Q_int(1,i)-Q_int(1,i-1))/dx,2*alpha* (Q_int(1,i+1)-Q_int(1,i))/dx)
-         delta(2,i) = minmod(delta(2,i),2*alpha* (Q_int(2,i)-Q_int(2,i-1))/dx,2*alpha* (Q_int(2,i+1)-Q_int(2,i))/dx)
-      end do
+      ! delta(1,1)    = minmod(delta(1,1),   2*alpha* (Q_int(1,1)-Q_int(1,1))/dx,      2*alpha* (Q_int(1,2)-Q_int(1,1))/dx)
+      ! delta(2,1)    = minmod(delta(2,1),   2*alpha* (Q_int(2,1)-Q_int(2,1))/dx,      2*alpha* (Q_int(2,1)-Q_int(2,1))/dx)
 
-      do i=0,nx
-         ! f(i) = F(Q(:,i), Q(:,i+1)) 
-        if(i==0) then;        F(:,0)  = Lax_Friedrichs(Q_int(:,1)                      ,Q_int(:,1  )-0.5*dx*delta(:,1))
-        else if (i==nx) then; F(:,nx) = Lax_Friedrichs(Q_int(:,nx)+0.5*dx*delta(:,nx)  ,Q_int(:,nx))
+      ! delta(1,nx)   = minmod(delta(1,nx),  2*alpha* (Q_int(1,nx)-Q_int(1,nx-1))/dx,  2*alpha* (Q_int(1,nx)-Q_int(1,nx))/dx)
+      ! delta(2,nx)   = minmod(delta(2,nx),  2*alpha* (Q_int(2,nx)-Q_int(2,nx-1))/dx,  2*alpha* (Q_int(2,nx)-Q_int(2,nx))/dx)
 
-        else;                 F(:,i)  = Lax_Friedrichs(Q_int(:,i) +0.5*dx*delta(:,i)   ,Q_int(:,i+1)-0.5*dx*delta(:,i+1))
-        end if
-      end do
+      ! do i=2,nx-1
+      !    delta(1,i) = minmod(delta(1,i),2*alpha* (Q_int(1,i)-Q_int(1,i-1))/dx,2*alpha* (Q_int(1,i+1)-Q_int(1,i))/dx)
+      !    delta(2,i) = minmod(delta(2,i),2*alpha* (Q_int(2,i)-Q_int(2,i-1))/dx,2*alpha* (Q_int(2,i+1)-Q_int(2,i))/dx)
+      ! end do
 
-      do i=2,nx
-         Q(:,i)= Q(:,i)- ((dt/dx)* (F(:,i)-F(:,i-1)))
-      end do 
+      ! do i=0,nx
+      !    ! f(i) = F(Q(:,i), Q(:,i+1)) 
+      !   if(i==0) then;        F(:,0)  = Lax_Friedrichs(Q_int(:,1)                      ,Q_int(:,1  )-0.5*dx*delta(:,1))
+      !   else if (i==nx) then; F(:,nx) = Lax_Friedrichs(Q_int(:,nx)+0.5*dx*delta(:,nx)  ,Q_int(:,nx))
+
+      !   else;                 F(:,i)  = Lax_Friedrichs(Q_int(:,i) +0.5*dx*delta(:,i)   ,Q_int(:,i+1)-0.5*dx*delta(:,i+1))
+      !   end if
+      ! end do
+
+      ! do i=1,nx
+      !    Q(:,i)= Q(:,i)- ((dt/dx)* (F(:,i)-F(:,i-1)))
+      ! end do 
 
    else
       print *,"aucune methode ou mauvaise methode choisi"

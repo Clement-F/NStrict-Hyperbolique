@@ -1,0 +1,11 @@
+nt =   500
+nx =  1000
+save_max =    8
+time_save = -1.000000
+time_save = -0.497798
+time_save =  0.000351
+time_save =  0.502551
+time_save =  1.000703
+time_save =  1.502905
+time_save =  3.503613
+time_save =  6.002355
