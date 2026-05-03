@@ -80,7 +80,7 @@ program FiniteVolume
    real     :: err_L1=0, err_L2=0, err_Li=0
 
 !  probleme variable
-   character(len=32)    :: methode_update = "LeVeque" 
+   character(len=32)    :: methode_update = "limitation" 
 
 !  file parameter
    integer, parameter   :: numfile_sol=1, numfile_data=2, numfile_param=3, numfile_err =4, numfile_conv=5

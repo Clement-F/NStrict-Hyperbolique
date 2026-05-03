@@ -371,12 +371,30 @@ subroutine Update(Q,X,dt,nx, arg_string)
    integer :: i 
    real, dimension(2,0:nx) :: F           ! F_{i+1/2}
    real, dimension(:,:), Pointer :: Q_int ! Q_{t n+1/2,i}
-   real, dimension(:,:), Pointer :: delta ! delta_i
    real                  :: dx
+
+   ! limiteur 
+   real, dimension(:,:), Pointer :: delta ! delta_i
    real  :: minmod
    real  :: alpha 
 
+   ! LeVeque   
+   real   :: s1,s2
+   real, dimension(2,nx) :: z1,z2, z1c,z2c
+   real, dimension(2,nx)   :: s
+   real, dimension(2)   :: F_=0, F_pred=0
+   real                 :: u_hat, theta1, theta2, phi1,phi2
+   real                 :: rhoL,rhoR,uL,uR
+
+
     interface
+    
+      function flux(Q) result(f)
+         implicit none
+         real, dimension(2), intent(in)  :: Q
+         real, dimension(2)              :: f
+      end function flux
+      
       function godunov(qg,qd)
          real,dimension(2), intent (in) :: qg,qd
          real,dimension(2)              :: godunov
@@ -429,7 +447,105 @@ subroutine Update(Q,X,dt,nx, arg_string)
       end do
    else if(methode_update == "LeVeque") then
 
-      call Update_LeVeque(Q,dt,dx,nx)
+      allocate(Q_int(2,1:nx)); Q_int = Q
+      call Update_LeVeque(Q_int,dt/2,dx,nx)
+      
+      
+   ! calcul des flux ordre 1 par godunov
+   do i=1,nx
+      if(i==1) then;       F(:,1)  = godunov(Q_int(:,1),   Q_int(:,1)) 
+      else if(i==nx) then; F(:,nx) = godunov(Q_int(:,nx),  Q_int(:,nx)) 
+      else;                F(:,i)  = godunov(Q_int(:,i),   Q_int(:,i+1))
+      end if
+   end do
+   
+   z1=0; z2=0; s=0
+
+   do i=1,nx-1
+      ! il est plus pratique de voir rho/u que Q_int dans le code
+      rhoL=Q_int(1,i);         rhoR  =Q_int(1,i+1)
+      uL  =Q_int(2,i)/Q_int(1,i);  uR    =Q_int(2,i+1)/Q_int(1,i+1)
+
+      ! cas de cavitation
+      if(uL<0 .and. 0<uR) then
+         z1(:,i) = -flux(Q_int(:,i));  z2(:,i)= flux(Q_int(:,i+1))
+         s(1,i) = uL;  s(2,i) =uR
+
+      else  
+         u_hat = uL*(sqrt(rhoL)/(sqrt(rhoL) + sqrt(rhoR))) &
+               + uR*(sqrt(rhoR)/(sqrt(rhoL) + sqrt(rhoR)))
+
+         if(u_hat<0) then
+            z1(:,i) = Q_int(:,i+1) - Q_int(:,i); z2(:,i) =0
+            s(1,i) = u_hat; s(2,i) = u_hat
+
+         else 
+            z1(:,i) = 0; z2(:,i) = Q_int(:,i+1)-Q_int(:,i)
+            s(1,i) = u_hat; s(2,i) = u_hat
+
+         end if
+
+      end if      
+   end do
+
+
+   ! calcul des flux de corrections
+   do i=2,nx-1
+      ! remise à 0
+      theta1 =0; theta2=0; 
+      phi1=0; phi2=0
+
+      ! calcul des thetas en fonction de la direction du "courant"
+      if(s(1,i)>0 .or. s(2,i)>0) then 
+         ! 'upwind'
+         if(abs(z1(1,i))> 1e-10 .or. abs(z1(2,i)) > 1e-10) theta1 = (z1(1,i)*z1(1,i-1) + z1(2,i)*z1(2,i-1))/(z1(1,i)*z1(1,i) + z1(2,i)*z1(2,i))
+         if(abs(z2(1,i))> 1e-10 .or. abs(z2(2,i)) > 1e-10) theta2 = (z2(1,i)*z2(1,i-1) + z2(2,i)*z2(2,i-1))/(z2(1,i)*z2(1,i) + z2(2,i)*z2(2,i))
+
+      else 
+         ! 'downwind'
+         if(abs(z1(1,i))> 1e-10 .or. abs(z1(2,i)) > 1e-10) theta1 = (z1(1,i)*z1(1,i+1) + z1(2,i)*z1(2,i+1))/(z1(1,i)*z1(1,i) + z1(2,i)*z1(2,i))
+         if(abs(z2(1,i))> 1e-10 .or. abs(z2(2,i)) > 1e-10) theta2 = (z2(1,i)*z2(1,i+1) + z2(2,i)*z2(2,i+1))/(z2(1,i)*z2(1,i) + z2(2,i)*z2(2,i))
+      
+      end if
+
+      ! evalue .not. NAN et leurs cause
+      if(theta1 /=theta1 ) print *,i,"theta1",z1(:,i),z1(:,i-1)
+      if(theta2 /=theta2 ) print *,i,"theta2",z2(:,i),z2(:,i-1)
+
+      ! calcul de la fonction de limitation 
+      phi1 = max(0.,min(1.,(theta1)));  
+      phi2 = max(0.,min(1.,(theta2)));  
+
+      ! calcul du flux de correction
+      F_ = 0.5*(    abs(s(1,i)) * (1-(dt/dx) *abs(s(2,i))))*(z1(:,i)*phi1)
+      F_ = F_+ 0.5*(abs(s(2,i)) * (1-(dt/dx) *abs(s(1,i))))*(z2(:,i)*phi2)
+
+      ! evalue .not. NAN      
+      if(F_(1) /= F_(1)) call exit(0)
+
+      ! verifie que la correction n'engendre pas de densité négative
+      ! si c'est le cas, on ne mets pas de correction en cette cellule ou la cellule voisine
+      if( (Q(1,i)-((dt/dx)* (F(1,i)-F(1,i-1))) - ((dt/dx)* (F_(1) -F_pred(1)) ))<0. )  then
+         z1c(:,i-1)=0; z2c(:,i-1)=0;
+         z1c(:,i)  =0; z2c(:,i)  =0;
+         F_pred =0; 
+         ! print *, "nul",i
+      else 
+         z1c(:,i)=z1(:,i)*phi1; z2c(:,i)=z2(:,i)*phi2;
+         F_pred = F_
+      end if
+   end do
+
+   ! mis à jour de la solution
+   do i=2,nx-1      
+      F_ = 0.5*(    abs(s(1,i)) * (1-(dt/dx) *abs(s(2,i))))*(z1c(:,i)*phi1)
+      F_ = F_+ 0.5*(abs(s(2,i)) * (1-(dt/dx) *abs(s(1,i))))*(z2c(:,i)*phi2)
+
+      F(:,i) = F(:,i) + F_
+
+      Q(:,i)= Q(:,i)- ((dt/dx)* (F(:,i)-F(:,i-1)))
+   end do
+
       return 
 
    else if(methode_update == "limitation") then
