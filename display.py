@@ -54,7 +54,7 @@ for k in range(0,sm):
     plt.plot(X,U_ex[0][k],'b', label="solution exacte")
     #plt.plot(X,U[1][k],'k')
         
-    plt.plot(X,U[0][k] - U_ex[0][k],'r', label= "erreur")
+    #plt.plot(X,U[0][k] - U_ex[0][k],'r', label= "erreur")
     #plt.plot(X,U[1][k]/U[0][k],'b')
     plt.xlabel("x")
     plt.ylabel('rho ')
