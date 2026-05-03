@@ -53,7 +53,7 @@ program FiniteVolume
 
 ! loop int   
    integer:: i,j,k
-   character(len=1) :: c1
+   character(len=1) :: blank
 
 !  constants
    real, parameter      :: pi = acos(-1.)
@@ -80,7 +80,7 @@ program FiniteVolume
    real     :: err_L1=0, err_L2=0, err_Li=0
 
 !  probleme variable
-   character(len=32)    :: methode_update = "limitation" 
+   character(len=32)    :: methode_update
 
 !  file parameter
    integer, parameter   :: numfile_sol=1, numfile_data=2, numfile_param=3, numfile_err =4, numfile_conv=5
@@ -114,13 +114,16 @@ program FiniteVolume
       read(numfile_param,  *) T;     
       read(numfile_param,  *) cfl;   
       read(numfile_param,  *) n_imp_max;   
+      read(numfile_param,  *) blank;
+      read(numfile_param,  *) methode_update;      
       read(numfile_param,  *) wL;  
       read(numfile_param,  *) wR;    
       read(numfile_param,  *) uL;  
       read(numfile_param,  *) uR;   
       read(numfile_param,  *) rhoL;  
       read(numfile_param,  *) rhoR;    
-      
+   
+   print *, methode_update
 
    dx = real((xf-xd))/nx
 
