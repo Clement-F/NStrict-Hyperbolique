@@ -16,6 +16,10 @@ for k in range(0,int(size/6)):
 plt.loglog(nx,err_L1,'b' , label="err_L1")
 plt.loglog(nx,err_L2,'r', label="err_L2")
 plt.loglog(nx,err_Li,'g', label="err_Linf")
+plt.xlabel("nx")
+plt.ylabel("erreur")
 plt.legend()
 plt.grid()
 plt.show()
+
+print((np.log(err_L2[-1])-np.log(err_L2[0]))/(np.log(nx[-1])-np.log(nx[0])))

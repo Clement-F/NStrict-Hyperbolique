@@ -5,7 +5,7 @@
 0.9             | cfl
 8               | number of screenshots
 -----------------------------------------------
-LeVeque      | methode update : godunov, Lax, LeVeque, limitation
+godunov      | methode update : godunov, Lax, LeVeque, limitation
 1.0             | épaisseur gauche
 3.0             | épaisseur droite
 1.0             | vitesse gauche

@@ -61,8 +61,8 @@ for k in range(0,sm):
     plt.ylim(-2,3); plt.xlim(X[1],X[-1])
     plt.legend()
     nom_fig = "ondes_t_"+str(T[k])+".png"
-    #plt.show()
-    plt.savefig(nom_fig)
+    plt.show()
+    #plt.savefig(nom_fig)
     plt.close()
     err_L2[k] = np.sqrt(sum((U[0][k]-U_ex[0][k])**2) + sum((U[1][k]-U_ex[1][k])**2))
 
